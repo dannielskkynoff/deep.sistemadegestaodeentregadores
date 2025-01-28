@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestão de Entregadores</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <h1>Gestão de Entregadores 🚚</h1>
+        
+        <!-- Formulário para adicionar/editar entregador -->
+        <form id="formEntregador">
+            <input type="text" id="nome" placeholder="Nome do Entregador" required>
+            <input type="text" id="veiculo" placeholder="Veículo" required>
+            <input type="text" id="telefone" placeholder="Telefone" required>
+            <button type="submit" id="btnSalvar">Adicionar Entregador</button>
+        </form>
+
+        <!-- Lista de entregadores -->
+        <h2>Lista de Entregadores</h2>
+        <ul id="listaEntregadores"></ul>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
