@@ -1,161 +1,224 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel do Lojista</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-  <style>
-    /* Estilos CSS incorporados para simplificar */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: 'Arial', sans-serif;
-    }
+    <meta charset="UTF-8">
+    <title>Alvo Relâmpago</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(45deg, #1a1a1a, #2a2a2a);
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
 
-    body {
-      background: #f0f2f5;
-      padding: 20px;
-    }
+        #gameContainer {
+            position: relative;
+            width: 800px;
+            height: 600px;
+        }
 
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
+        #gameCanvas {
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
 
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 24px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
 
-    .btn {
-      background: #007bff;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: background 0.3s;
-    }
+        #startScreen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: white;
+        }
 
-    .btn:hover {
-      background: #0056b3;
-    }
+        button {
+            padding: 15px 30px;
+            font-size: 20px;
+            background: #4CAF50;
+            border: none;
+            border-radius: 25px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(76,175,80,0.4);
+        }
 
-    .sections {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
-    }
+        button:hover {
+            background: #45a049;
+            transform: scale(1.05);
+        }
 
-    .section {
-      background: white;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
+        .target {
+            position: absolute;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
 
-    .order-card {
-      background: #f8f9fa;
-      padding: 15px;
-      margin: 10px 0;
-      border-radius: 8px;
-      border-left: 4px solid #007bff;
-    }
-
-    .order-status {
-      font-size: 0.9em;
-      color: #666;
-      margin-top: 8px;
-    }
-  </style>
+        .target:hover {
+            transform: scale(1.1);
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>Painel do Lojista</h1>
-      <button class="btn" id="callDelivery">
-        <i class="fas fa-bell"></i> Chamar Entregador
-      </button>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="ui">
+            Pontuação: <span id="score">0</span><br>
+            Tempo: <span id="timer">30</span>
+        </div>
+        <div id="startScreen">
+            <h1>Alvo Relâmpago ⚡</h1>
+            <p>Clique nos alvos antes que desapareçam!</p>
+            <button onclick="startGame()">Jogar</button>
+        </div>
     </div>
 
-    <div class="sections">
-      <div class="section">
-        <h2>🕒 Pendente</h2>
-        <div id="pendingOrders"></div>
-      </div>
-      <div class="section">
-        <h2>✅ Aceito</h2>
-        <div id="acceptedOrders"></div>
-      </div>
-      <div class="section">
-        <h2>📦 Entregue</h2>
-        <div id="deliveredOrders"></div>
-      </div>
-    </div>
-  </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let score = 0;
+        let timeLeft = 30;
+        let gameInterval;
+        let targets = [];
+        let particles = [];
 
-  <!-- Firebase e configuração -->
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
-  <script>
-    // Configuração do Firebase (substitua com seus dados)
-    const firebaseConfig = {
-      apiKey: "SUA_API_KEY",
-      authDomain: "SEU_PROJETO.firebaseapp.com",
-      projectId: "SEU_PROJETO",
-      storageBucket: "SEU_PROJETO.appspot.com",
-      messagingSenderId: "SEU_SENDER_ID",
-      appId: "SEU_APP_ID"
-    };
+        class Target {
+            constructor() {
+                this.x = Math.random() * (canvas.width - 60);
+                this.y = Math.random() * (canvas.height - 60);
+                this.size = Math.random() * 30 + 30;
+                this.color = `hsl(${Math.random() * 360}, 70%, 60%)`;
+                this.life = 100;
+            }
 
-    // Inicializar Firebase
-    const app = firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                
+                // Efeito de brilho
+                ctx.shadowColor = this.color;
+                ctx.shadowBlur = 20;
+                ctx.shadowOffsetX = 0;
+                ctx.shadowOffsetY = 0;
+            }
+        }
 
-    // Função para criar pedido
-    document.getElementById('callDelivery').addEventListener('click', () => {
-      const address = prompt('Digite o endereço do cliente:');
-      if (address) {
-        db.collection('orders').add({
-          status: 'pending',
-          address: address,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-      }
-    });
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.size = Math.random() * 5 + 2;
+                this.speedX = Math.random() * 6 - 3;
+                this.speedY = Math.random() * 6 - 3;
+                this.color = color;
+                this.alpha = 1;
+            }
 
-    // Função para renderizar pedidos
-    const renderOrders = (status, containerId) => {
-      db.collection('orders')
-        .where('status', '==', status)
-        .onSnapshot(snapshot => {
-          const container = document.getElementById(containerId);
-          container.innerHTML = '';
-          
-          snapshot.forEach(doc => {
-            const order = doc.data();
-            const orderHtml = `
-              <div class="order-card">
-                <p><strong>Endereço:</strong> ${order.address}</p>
-                <p class="order-status">
-                  Status: ${order.status}<br>
-                  ${order.createdAt?.toDate().toLocaleString() || ''}
-                </p>
-              </div>
-            `;
-            container.innerHTML += orderHtml;
-          });
-        });
-    };
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.alpha -= 0.02;
+            }
 
-    // Iniciar listeners
-    renderOrders('pending', 'pendingOrders');
-    renderOrders('accepted', 'acceptedOrders');
-    renderOrders('delivered', 'deliveredOrders');
-  </script>
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function initGame() {
+            score = 0;
+            timeLeft = 30;
+            targets = [];
+            particles = [];
+            document.getElementById('score').textContent = '0';
+            document.getElementById('timer').textContent = '30';
+            document.getElementById('startScreen').style.display = 'none';
+        }
+
+        function createParticles(x, y, color) {
+            for (let i = 0; i < 20; i++) {
+                particles.push(new Particle(x, y, color));
+            }
+        }
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Desenhar alvos
+            targets.forEach((target, index) => {
+                target.draw();
+                target.life--;
+                if (target.life <= 0) {
+                    targets.splice(index, 1);
+                }
+            });
+
+            // Desenhar partículas
+            particles.forEach((particle, index) => {
+                particle.update();
+                particle.draw();
+                if (particle.alpha <= 0) {
+                    particles.splice(index, 1);
+                }
+            });
+
+            // Adicionar novos alvos
+            if (Math.random() < 0.03) {
+                targets.push(new Target());
+            }
+        }
+
+        function startGame() {
+            initGame();
+            gameInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timer').textContent = timeLeft;
+                if (timeLeft <= 0) {
+                    clearInterval(gameInterval);
+                    document.getElementById('startScreen').style.display = 'block';
+                }
+            }, 1000);
+
+            canvas.addEventListener('click', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                targets.forEach((target, index) => {
+                    const distance = Math.hypot(mouseX - target.x, mouseY - target.y);
+                    if (distance < target.size) {
+                        score++;
+                        document.getElementById('score').textContent = score;
+                        createParticles(target.x, target.y, target.color);
+                        targets.splice(index, 1);
+                    }
+                });
+            });
+
+            setInterval(gameLoop, 1000/60);
+        }
+    </script>
 </body>
-  </html>
+</html>
